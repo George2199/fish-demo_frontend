@@ -31,6 +31,7 @@ function App() {
 
   return (
     <div className="app">
+      
       <h1>🐟 Fish-Guard</h1>
       
       <form onSubmit={handleUpload} className="upload-form">

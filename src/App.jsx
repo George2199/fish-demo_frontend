@@ -17,7 +17,7 @@ function App() {
     formData.append('image', file);
 
     try {
-      const response = await axios.post('http://localhost:8000/analyze', formData, {
+      const response = await axios.post('http://45.90.217.192:8000/analyze', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setResult(response.data);

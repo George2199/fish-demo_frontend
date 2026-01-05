@@ -31,7 +31,6 @@ function App() {
 
   return (
     <div className="app">
-      
       <h1>🐟 Fish-Guard</h1>
       
       <form onSubmit={handleUpload} className="upload-form">
@@ -53,10 +52,19 @@ function App() {
             <>
               <h2>Результат анализа:</h2>
               <p><strong>Диагноз:</strong> {result.diagnosis}</p>
-              <p><strong>Вероятность:</strong> {result.confidence}%</p>
+              <p><strong>Вероятность:</strong> {(result.confidence * 100).toFixed(1)}%</p>
               <p><strong>Рекомендации:</strong> {result.recommendations}</p>
-              {result.image_with_bbox && (
-                <img src={result.image_with_bbox} alt="Результат" />
+              
+              {/* Отображаем оригинальную картинку */}
+              {result.original_image && (
+                <div className="image-section">
+                  <h3>Ваше изображение:</h3>
+                  <img 
+                    src={`data:image/${result.image_format || 'jpeg'};base64,${result.original_image}`}
+                    alt="Загруженное изображение"
+                    className="preview-image"
+                  />
+                </div>
               )}
             </>
           )}

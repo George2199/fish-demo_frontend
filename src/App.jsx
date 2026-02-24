@@ -49,19 +49,31 @@ function App() {
     formData.append('image', file);
 
     try {
-      // 1️⃣ Отправляем POST-запрос на создание задачи
+      // 1️⃣ Отправляем POST-запрос на анализ
       const task_response = await axios.post(
         'http://45.90.217.192:8000/analyze',
         formData
       );
 
-      const task_id = task_response.data.task_id;
-      if (!task_id) throw new Error('Не удалось получить task_id');
-
-      // 2️⃣ Опрашиваем сервер до готовности результата
-      const analysisResult = await pollResult(task_id);
-
-      setResult(analysisResult);
+      const data = task_response.data;
+      
+      // 🔍 Проверяем, пришел ли результат сразу (из кэша)
+      if (data.id && data.diagnosis) {
+        // Это результат из кэша - показываем сразу
+        console.log('Получен результат из кэша:', data);
+        setResult(data);
+      } 
+      // Если пришел task_id - значит задача в обработке
+      else if (data.task_id) {
+        console.log('Задача создана, task_id:', data.task_id);
+        
+        // 2️⃣ Опрашиваем сервер до готовности результата
+        const analysisResult = await pollResult(data.task_id);
+        setResult(analysisResult);
+      } 
+      else {
+        throw new Error('Неожиданный формат ответа от сервера');
+      }
 
     } catch (err) {
       console.error('Ошибка при анализе:', err);
@@ -71,6 +83,7 @@ function App() {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="app">
@@ -92,9 +105,9 @@ function App() {
       {result && !result.error && (
         <div className="result">
           <h2>Результат анализа:</h2>
-          <p><strong>Диагноз:</strong> {result.diagnosis}</p>
+          {/* <p><strong>Диагноз:</strong> {result.diagnosis}</p>
           <p><strong>Вероятность:</strong> {(result.confidence * 100).toFixed(1)}%</p>
-          <p><strong>Рекомендации:</strong> {result.recommendations}</p>
+          <p><strong>Рекомендации:</strong> {result.recommendations}</p> */}
 
           {result.original_image && (
             <div className="image-section">

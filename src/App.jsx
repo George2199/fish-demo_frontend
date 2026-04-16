@@ -8,24 +8,33 @@ function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [taskId, setTaskId] = useState(null);
+  const [isCanceled, setIsCanceled] = useState(false);
 
   // Функция polling
   const pollResult = async (task_id, interval = 1000, maxAttempts = 1000) => {
     let attempts = 0;
     while (attempts < maxAttempts) {
+      if (isCanceled) {
+        throw new Error('Отменено пользователем');
+      }
       try {
         const response = await axios.get(`http://45.90.217.192:8000/analyze-result/${task_id}`);
         const data = response.data;
+
+        if (data.status === 'canceled') {
+          throw new Error('Анализ отменен');
+        }
 
         if (!data.status || data.status === 'done') {
           // Результат готов
           return data;
         }
 
-        if (data.status === 'processing') {
+        // if (data.status === 'processing') {
           // Ждем и пробуем снова
           await new Promise(resolve => setTimeout(resolve, interval));
-        }
+        // }
 
       } catch (err) {
         console.error('Ошибка при получении результата:', err);
@@ -66,7 +75,7 @@ function App() {
       // Если пришел task_id - значит задача в обработке
       else if (data.task_id) {
         console.log('Задача создана, task_id:', data.task_id);
-        
+        setTaskId(data.task_id);
         // 2️⃣ Опрашиваем сервер до готовности результата
         const analysisResult = await pollResult(data.task_id);
         setResult(analysisResult);
@@ -82,7 +91,23 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+};
+
+  const handleCancel = async () => {
+  if (!taskId) return;
+
+  try {
+    await axios.post(
+      `http://45.90.217.192:8000/cancel/${taskId}`
+    );
+  } catch (e) {
+    console.error(e);
+  }
+
+  setIsCanceled(true);
+  setLoading(false);
+  setResult(null);
+};
 
 
   return (
@@ -96,8 +121,14 @@ function App() {
           onChange={(e) => setFile(e.target.files[0])} 
         />
         <button type="submit" disabled={!file || loading}>
-          {loading ? 'Анализируем...' : 'Диагностировать'}
+        {loading ? 'Анализируем...' : 'Диагностировать'}
+      </button>
+
+      {loading && (
+        <button type="button" onClick={handleCancel}>
+          ❌
         </button>
+)}
       </form>
 
       {error && <p className="error">{error}</p>}

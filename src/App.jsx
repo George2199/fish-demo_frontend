@@ -15,16 +15,14 @@ function App() {
   const pollResult = async (task_id, interval = 1000, maxAttempts = 1000) => {
     let attempts = 0;
     while (attempts < maxAttempts) {
-      if (isCanceled) {
-        throw new Error('Отменено пользователем');
-      }
       try {
         const response = await axios.get(`http://45.90.217.192:8000/analyze-result/${task_id}`);
         const data = response.data;
 
-        if (data.status === 'canceled') {
-          throw new Error('Анализ отменен');
-        }
+      if (data.status === 'canceled') {
+        console.log("Опрос остановлен: задача отменена сервером");
+        return data; // ПРЕРЫВАЕМ ЦИКЛ ЗДЕСЬ
+      }
 
         if (!data.status || data.status === 'done') {
           // Результат готов
@@ -50,9 +48,11 @@ function App() {
     e.preventDefault();
     if (!file) return;
 
+    setIsCanceled(false);
     setLoading(true);
     setError(null);
     setResult(null);
+    setTaskId(null);
 
     const formData = new FormData();
     formData.append('image', file);
@@ -65,6 +65,11 @@ function App() {
       );
 
       const data = task_response.data;
+
+      if (data.status === 'canceled') {
+        setResult(null); // Очищаем, чтобы ничего не всплывало
+        console.log("Результат не установлен, так как задача отменена");
+      }
       
       // 🔍 Проверяем, пришел ли результат сразу (из кэша)
       if (data.id && data.diagnosis) {
@@ -114,26 +119,31 @@ function App() {
     <div className="app">
       <h1>🐟 Fish-Guard</h1>
       
-      <form onSubmit={handleUpload} className="upload-form">
-        <input 
-          type="file" 
-          accept="image/*"
-          onChange={(e) => setFile(e.target.files[0])} 
-        />
-        <button type="submit" disabled={!file || loading}>
-        {loading ? 'Анализируем...' : 'Диагностировать'}
-      </button>
+  <form onSubmit={handleUpload} className="upload-form">
+  <input 
+    type="file" 
+    accept="image/*"
+    onChange={(e) => setFile(e.target.files[0])} 
+  />
 
-      {loading && (
-        <button type="button" onClick={handleCancel}>
-          ❌
-        </button>
-)}
-      </form>
+  {/* Условный рендеринг: либо одна кнопка, либо другая */}
+  {!loading ? (
+    <button type="submit" disabled={!file}>
+      Диагностировать
+    </button>
+  ) : (
+    <div className="cancel-container">
+      <div className="loader-ring"></div>
+      <button type="button" className="cancelBtn" onClick={handleCancel}>
+        <img src="./cancel.png"/>
+      </button>
+    </div>
+  )}
+</form>
 
       {error && <p className="error">{error}</p>}
 
-      {result && !result.error && (
+      {result && !result.error && result.status !== 'canceled' &&(
         <div className="result">
           <h2>Результат анализа:</h2>
           {/* <p><strong>Диагноз:</strong> {result.diagnosis}</p>

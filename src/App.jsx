@@ -1,5 +1,5 @@
 // App.jsx
-import { useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
@@ -10,6 +10,50 @@ function App() {
   const [error, setError] = useState(null);
   const [taskId, setTaskId] = useState(null);
   const [isCanceled, setIsCanceled] = useState(false);
+  const imgRef = useRef(null);
+  const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
+  const [imgNaturalSize, setImgNaturalSize] = useState({
+    width: 0,
+    height: 0
+  });
+
+const scaleX =
+  imgNaturalSize.width
+    ? imgSize.width / imgNaturalSize.width
+    : 1;
+
+const scaleY =
+  imgNaturalSize.height
+    ? imgSize.height / imgNaturalSize.height
+    : 1;
+
+  useEffect(() => {
+    if (result) {
+      console.group("📐 Debug Scaling");
+      console.log("Оригинал (ML):", { 
+        w: result.image_width, 
+        h: result.image_height 
+      });
+      console.log("На экране (UI):", { 
+        w: imgSize.width, 
+        h: imgSize.height 
+      });
+      console.log("Коэффициенты:", { 
+        scaleX: scaleX.toFixed(4), 
+        scaleY: scaleY.toFixed(4) 
+      });
+      
+      if (result.detections?.length > 0) {
+        const d = result.detections[0].bbox;
+        console.log("Пример bbox (первый):", {
+          raw: d,
+          scaled: [d[0] * scaleX, d[1] * scaleY, d[2] * scaleX, d[3] * scaleY]
+        });
+      }
+      console.groupEnd();
+    }
+  }, [imgSize, result, scaleX, scaleY]);
+
 
   // Функция polling
   const pollResult = async (task_id, interval = 1000, maxAttempts = 1000) => {
@@ -24,7 +68,7 @@ function App() {
         return data; // ПРЕРЫВАЕМ ЦИКЛ ЗДЕСЬ
       }
 
-        if (!data.status || data.status === 'done') {
+        if (data.status === 'done') {
           // Результат готов
           return data;
         }
@@ -126,7 +170,6 @@ function App() {
     onChange={(e) => setFile(e.target.files[0])} 
   />
 
-  {/* Условный рендеринг: либо одна кнопка, либо другая */}
   {!loading ? (
     <button type="submit" disabled={!file}>
       Диагностировать
@@ -151,14 +194,52 @@ function App() {
           <p><strong>Рекомендации:</strong> {result.recommendations}</p> */}
 
           {result.original_image && (
-            <div className="image-section">
-              <h3>Ваше изображение:</h3>
-              <img 
-                src={`data:image/${result.image_format || 'jpeg'};base64,${result.original_image}`}
-                alt="Загруженное изображение"
-                className="preview-image"
-              />
-            </div>
+          <div className="image-wrapper">
+            <img
+              ref={imgRef}
+              src={`data:image/jpeg;base64,${result.original_image}`}
+              onLoad={(e) => {
+                const img = e.target;
+
+                setImgSize({
+                  width: img.clientWidth,
+                  height: img.clientHeight,
+                });
+
+                setImgNaturalSize({
+                  width: img.naturalWidth,
+                  height: img.naturalHeight,
+                });
+              }}
+            />
+            <svg className="overlay"
+                width={imgSize.width}
+                height={imgSize.height}>
+              {result.detections?.map((det, i) => {
+                const [x1, y1, x2, y2] = det.bbox;
+
+                return (
+                  <rect
+                    key={i}
+                    x={x1 * scaleX}
+                    y={y1 * scaleY}
+                    width={(x2 - x1) * scaleX}
+                    height={(y2 - y1) * scaleY}
+                    fill="transparent"
+                    stroke="red"
+                    strokeWidth="2"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      console.log("CLICK:", det);
+                      console.log("bbox raw:", det.bbox);
+                      
+                      alert(`${det.class} (${(det.det_confidence * 100).toFixed(1)}%)`);
+                    }}
+                  />
+                );
+              })}
+            </svg>
+          </div>
           )}
         </div>
       )}

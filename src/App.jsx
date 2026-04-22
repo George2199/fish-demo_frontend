@@ -68,7 +68,7 @@ const scaleY =
         return data; // ПРЕРЫВАЕМ ЦИКЛ ЗДЕСЬ
       }
 
-        if (data.status === 'done') {
+        if (!data.status || data.status === 'done') {
           // Результат готов
           return data;
         }
